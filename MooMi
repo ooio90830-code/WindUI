@@ -1,0 +1,175 @@
+import threading
+import time
+import tkinter as tk
+from tkinter import messagebox
+import pyautogui
+
+# Enable PyAutoGUI safety features
+# (Moving the mouse to any corner of the screen will trigger an emergency stop)
+pyautogui.FAILSAFE = True
+pyautogui.PAUSE = 0.5
+
+
+class AutoFarmApp:
+
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Auto Farm Bot - GUI")
+        self.root.geometry("480x520")
+
+        # State variables
+        self.saved_points = []  # Stores coordinates [(x1, y1), (x2, y2), ...]
+        self.is_running = False  # Status flag
+        self.farm_thread = None
+
+        # --- Section 1: Instructions ---
+        label = tk.Label(
+            root,
+            text="1. Click inside the gray box to set target coordinates.\n"
+            "2. Click 'Start Auto Farm' to loop through saved points.",
+            font=("Arial", 9),
+            justify="left",
+        )
+        label.pack(pady=10)
+
+        # --- Section 2: Interactive Canvas Area ---
+        self.canvas = tk.Canvas(root, bg="#dcdde1", height=140)
+        self.canvas.pack(fill="x", padx=15, pady=5)
+        self.canvas.bind("<Button-1>", self.on_canvas_click)
+
+        # --- Section 3: Saved Points List ---
+        list_label = tk.Label(
+            root, text="Saved Coordinates List:", font=("Arial", 10, "bold")
+        )
+        list_label.pack(anchor="w", padx=15, pady=(10, 0))
+
+        self.listbox = tk.Listbox(root, height=5)
+        self.listbox.pack(fill="x", padx=15, pady=5)
+
+        # Delete button
+        delete_btn = tk.Button(
+            root,
+            text="Delete Selected",
+            bg="#e74c3c",
+            fg="white",
+            command=self.delete_point,
+        )
+        delete_btn.pack(pady=2)
+
+        # --- Section 4: Control Buttons (Start / Stop) ---
+        control_frame = tk.Frame(root)
+        control_frame.pack(pady=15)
+
+        self.start_btn = tk.Button(
+            control_frame,
+            text="▶ Start Auto Farm",
+            bg="#2ecc71",
+            fg="white",
+            font=("Arial", 11, "bold"),
+            width=15,
+            command=self.start_farming,
+        )
+        self.start_btn.pack(side="left", padx=5)
+
+        self.stop_btn = tk.Button(
+            control_frame,
+            text="⏹ Stop",
+            bg="#95a5a6",
+            fg="white",
+            font=("Arial", 11, "bold"),
+            width=15,
+            state="disabled",
+            command=self.stop_farming,
+        )
+        self.stop_btn.pack(side="left", padx=5)
+
+        # Status indicator
+        self.status_label = tk.Label(
+            root,
+            text="Status: Idle",
+            fg="#7f8c8d",
+            font=("Arial", 9, "italic"),
+        )
+        self.status_label.pack(pady=5)
+
+    def on_canvas_click(self, event):
+        """Triggers when clicking inside the canvas to open popup window."""
+        x, y = event.x, event.y
+        self.open_popup(x, y)
+
+    def open_popup(self, x, y):
+        """Opens a popup window to confirm saving point coordinates."""
+        popup = tk.Toplevel(self.root)
+        popup.title("Confirm Coordinates")
+        popup.geometry("240x130")
+        popup.grab_set()  # Focus on popup window until closed
+
+        info_label = tk.Label(
+            popup, text=f"Selected Coordinates:\nX: {x}, Y: {y}"
+        )
+        info_label.pack(pady=10)
+
+        def save():
+            self.saved_points.append((x, y))
+            self.listbox.insert(
+                tk.END, f"Point {len(self.saved_points)}: (X: {x}, Y: {y})"
+            )
+            popup.destroy()
+
+        save_btn = tk.Button(
+            popup, text="Save Point", bg="#3498db", fg="white", command=save
+        )
+        save_btn.pack()
+
+    def delete_point(self):
+        """Deletes the selected coordinate entry."""
+        selected = self.listbox.curselection()
+        if not selected:
+            messagebox.showwarning(
+                "Warning", "Please select a point to delete."
+            )
+            return
+        idx = selected[0]
+        self.listbox.delete(idx)
+        del self.saved_points[idx]
+
+    def start_farming(self):
+        """Starts the farming loop in a separate thread to keep GUI responsive."""
+        if not self.saved_points:
+            messagebox.showwarning(
+                "Warning", "Please add at least one coordinate point first."
+            )
+            return
+
+        self.is_running = True
+        self.start_btn.config(state="disabled", bg="#95a5a6")
+        self.stop_btn.config(state="normal", bg="#e74c3c")
+        self.status_label.config(text="Status: Running...", fg="#2ecc71")
+
+        # Use threading to prevent GUI freeze during loop execution
+        self.farm_thread = threading.Thread(target=self.farm_loop, daemon=True)
+        self.farm_thread.start()
+
+    def stop_farming(self):
+        """Stops the auto-farming process."""
+        self.is_running = False
+        self.start_btn.config(state="normal", bg="#2ecc71")
+        self.stop_btn.config(state="disabled", bg="#95a5a6")
+        self.status_label.config(text="Status: Stopped", fg="#7f8c8d")
+
+    def farm_loop(self):
+        """Main loop executing clicks at saved coordinates."""
+        while self.is_running:
+            for pt in self.saved_points:
+                if not self.is_running:
+                    break
+
+                x, y = pt
+                pyautogui.click(x, y)
+                time.sleep(1)  # 1-second delay between clicks
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AutoFarmApp(root)
+    root.mainloop()
