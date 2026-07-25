@@ -1,0 +1,103 @@
+-- 1. Load Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+
+-- 2. Fetch Required Services
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- 3. Function to find and teleport to the best ping server
+local function hopToBestPingServer()
+    local placeId = game.PlaceId
+    local currentJobId = game.JobId
+    local apiUrl = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100"
+
+    local success, response = pcall(function()
+        return game:HttpGet(apiUrl)
+    end)
+
+    if success and response then
+        local decoded = HttpService:JSONDecode(response)
+        if decoded and decoded.data then
+            local bestServer = nil
+            local lowestPing = 9999
+
+            for _, server in ipairs(decoded.data) do
+                -- Filter for valid server, not current server, and has room
+                if server.id ~= currentJobId and server.playing < server.maxPlayers and server.playing > 0 then
+                    local ping = server.ping or 999
+                    if ping < lowestPing then
+                        lowestPing = ping
+                        bestServer = server
+                    end
+                end
+            end
+
+            if bestServer then
+                print("Teleporting to Server ID: " .. bestServer.id .. " | Ping: " .. tostring(lowestPing))
+                TeleportService:TeleportToPlaceInstance(placeId, bestServer.id, LocalPlayer)
+                return
+            end
+        end
+    end
+
+    -- Fallback teleport
+    TeleportService:Teleport(placeId, LocalPlayer)
+end
+
+-- 4. Function to scan current server for fishing players
+local function checkFishingPlayers()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            -- Check equipped tool
+            if player.Character then
+                for _, item in ipairs(player.Character:GetChildren()) do
+                    if item:IsA("Tool") and (string.find(string.lower(item.Name), "rod") or string.find(string.lower(item.Name), "fish")) then
+                        return true
+                    end
+                end
+            end
+            -- Check backpack items
+            if player:FindFirstChild("Backpack") then
+                for _, item in ipairs(player.Backpack:GetChildren()) do
+                    if item:IsA("Tool") and (string.find(string.lower(item.Name), "rod") or string.find(string.lower(item.Name), "fish")) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- 5. Auto Scan on Join
+task.spawn(function()
+    task.wait(5) -- Wait for characters to load
+    
+    local hasFishingPlayer = checkFishingPlayers()
+    if hasFishingPlayer then
+        print("[Status] Found fishing player in this server!")
+    else
+        print("[Status] No fishing player found. Hopping to a low-ping server...")
+        -- Uncomment line below if you want automatic hop when no fishing players are found
+        -- hopToBestPingServer()
+    end
+end)
+
+-- 6. Create UI Window
+local Window = Library.CreateLib("My Script OAKPVP", "DarkTheme")
+local Tab = Window:NewTab("Main Menu")
+local Section = Tab:NewSection("Auto Server & Fishing Tracker")
+
+Section:NewButton("Hop Best Ping Server", "Teleport to the server with lowest ping", function()
+    hopToBestPingServer()
+end)
+
+Section:NewButton("Scan Fishing Players", "Check if anyone is fishing in current server", function()
+    if checkFishingPlayers() then
+        print("[Scan Result] Fishing player detected in this server.")
+    else
+        print("[Scan Result] No fishing player found.")
+    end
+end)
