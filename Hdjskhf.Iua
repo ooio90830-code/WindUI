@@ -1,0 +1,49 @@
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+-- 1. Set the Place ID of the target map (e.g., Block Spin)
+local TARGET_PLACE_ID = 0000000000 -- <--- Replace with your actual Place ID
+
+-- Verify if the current game matches the target Place ID
+if game.PlaceId ~= TARGET_PLACE_ID then
+    warn("Script execution stopped: Current Place ID does not match target.")
+    return
+end
+
+-- 2. Reference UI Elements
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Assumes a ScreenGui named "MainGui" containing "ToggleButton" and "MenuFrame"
+local screenGui = playerGui:WaitForChild("MainGui")
+local toggleButton = screenGui:WaitForChild("ToggleButton")
+local menuFrame = screenGui:WaitForChild("MenuFrame")
+
+-- 3. Function to Toggle UI Visibility
+local function toggleMenu()
+    menuFrame.Visible = not menuFrame.Visible
+end
+
+toggleButton.Activated:Connect(toggleMenu)
+
+-- 4. Touch/Click Coordinate Recording System
+local recordedPoints = {}
+
+local function onInputBegan(input, gameProcessed)
+    -- Ignore inputs if the user is interacting with UI elements (e.g., clicking the Toggle button)
+    if gameProcessed then return end
+
+    -- Detect mobile touch or primary mouse click
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local position = input.Position
+        
+        table.insert(recordedPoints, {
+            x = position.X,
+            y = position.Y
+        })
+        
+        print(string.format("Recorded Point: X = %.1f, Y = %.1f (Total: %d)", position.X, position.Y, #recordedPoints))
+    end
+end
+
+UserInputService.InputBegan:Connect(onInputBegan)
