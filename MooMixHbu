@@ -1,0 +1,114 @@
+-- [[ MOOMI X HUB - GOD SHARPNESS & ULTRA SNAP EDITION ]] --
+-- Edition: Pro Foreigner Style (Instant CFrame Snap & Fast ESP)
+-- Theme: Green & Black
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- ==========================================
+-- 1. Main Settings (Max Performance)
+-- ==========================================
+local Settings = {
+    Aimbot = false,
+    Sharpness = 100,      -- 100 = Instant Head Lock
+    Prediction = 0.24,    -- High speed prediction
+    
+    WallCheck = false,
+    TeamCheck = false,
+    
+    ESP_Enabled = false,
+    ShowFOV = true,
+    FOVRadius = 140,      -- FOV radius to lock nearby targets
+    
+    -- UI Theme
+    BgColor = Color3.fromRGB(15, 15, 15),
+    PanelColor = Color3.fromRGB(20, 25, 20),
+    AccentColor = Color3.fromRGB(0, 255, 100), 
+    TextColor = Color3.fromRGB(240, 240, 240)
+}
+
+local CurrentTarget = nil
+
+-- ==========================================
+-- 2. Clear Old UI
+-- ==========================================
+pcall(function()
+    if CoreGui:FindFirstChild("MoomiX_God") then CoreGui.MoomiX_God:Destroy() end
+    if LocalPlayer.PlayerGui:FindFirstChild("MoomiX_God") then LocalPlayer.PlayerGui.MoomiX_God:Destroy() end
+end)
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MoomiX_God"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local ESP_Folder = Instance.new("Folder", ScreenGui)
+ESP_Folder.Name = "ESP_Visuals"
+
+-- ==========================================
+-- 3. FOV Circle System
+-- ==========================================
+local FOVFrame = Instance.new("Frame")
+FOVFrame.Name = "FOVCircle"
+FOVFrame.BackgroundTransparency = 1
+FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+FOVFrame.Size = UDim2.new(0, Settings.FOVRadius * 2, 0, Settings.FOVRadius * 2)
+FOVFrame.Visible = Settings.ShowFOV
+FOVFrame.Parent = ScreenGui
+
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Color = Settings.AccentColor
+FOVStroke.Thickness = 1.5
+FOVStroke.Parent = FOVFrame
+
+local FOVCorner = Instance.new("UICorner")
+FOVCorner.CornerRadius = UDim.new(1, 0)
+FOVCorner.Parent = FOVFrame
+
+-- ==========================================
+-- 4. UI Window System
+-- ==========================================
+local function MakeDraggable(dragArea, moveTarget)
+    local dragging, dragInput, mousePos, framePos
+    dragArea.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; mousePos = input.Position; framePos = moveTarget.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    dragArea.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            moveTarget.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+local MinIcon = Instance.new("ImageButton", ScreenGui)
+MinIcon.Size = UDim2.new(0, 50, 0, 50); MinIcon.Position = UDim2.new(0, 20, 0, 20); MinIcon.BackgroundColor3 = Settings.BgColor; MinIcon.Visible = false
+Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", MinIcon).Color = Settings.AccentColor; Instance.new("UIStroke", MinIcon).Thickness = 2
+local MinText = Instance.new("TextLabel", MinIcon)
+MinText.Size = UDim2.new(1, 0, 1, 0); MinText.BackgroundTransparency = 1; MinText.Text = "M"; MinText.TextColor3 = Settings.AccentColor; MinText.Font = Enum.Font.GothamBold; MinText.TextSize = 24
+MakeDraggable(MinIcon, MinIcon)
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 450, 0, 500); MainFrame.Position = UDim2.new(0.5, -225, 0.5, -250); MainFrame.BackgroundColor3 = Settings.BgColor; MainFrame.BorderSizePixel = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Settings.AccentColor; MainStroke.Thickness = 1.5; MainStroke.Transparency = 0.2
+
+local TitleBar = Instance.new("Frame", MainFrame)
+TitleBar.Size = UDim2.new(1, 0, 0, 45); TitleBar.BackgroundColor3 = Color3.fromRGB(10, 12, 10)
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 10)
+local TitleFix = Instance.new("Frame", Ti
