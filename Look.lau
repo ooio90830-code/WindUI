@@ -1,0 +1,260 @@
+-- Combined System: ESP Highlight, Aim Assist, Max 100 FOV & Toggleable UI
+-- Place this inside StarterPlayer -> StarterPlayerScripts (as a LocalScript)
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+--------------------------------------------------------------------------------
+-- 1. CONFIGURATION & STATE
+--------------------------------------------------------------------------------
+local Settings = {
+	AimAssistEnabled = true,
+	ESPEnabled = true,
+	ShowFOV = true,
+	FOVRadius = 50,              -- Default FOV (Max: 100, Min: 10)
+	MaxFOV = 100,                -- Maximum FOV limit
+	MinFOV = 10,                 -- Minimum FOV limit
+	Smoothness = 0.15,           -- Smoothness (0.05 = Smooth, 0.5 = Fast)
+	LockKey = Enum.UserInputType.MouseButton2 -- Hold Right-Click to Aim
+}
+
+local isAiming = false
+
+--------------------------------------------------------------------------------
+-- 2. GUI MENU (WITH TOGGLE BUTTON)
+--------------------------------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AdminControlUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Main Menu Frame
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 220, 0, 230)
+Frame.Position = UDim2.new(0, 20, 0.4, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Visible = true
+Frame.Parent = ScreenGui
+
+-- Open/Close Main Menu Toggle Button
+local MenuToggleBtn = Instance.new("TextButton")
+MenuToggleBtn.Size = UDim2.new(0, 80, 0, 30)
+MenuToggleBtn.Position = UDim2.new(0, 20, 0.35, -35)
+MenuToggleBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+MenuToggleBtn.Text = "Toggle Menu"
+MenuToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuToggleBtn.Font = Enum.Font.SourceSansBold
+MenuToggleBtn.TextSize = 12
+MenuToggleBtn.Parent = ScreenGui
+
+MenuToggleBtn.MouseButton1Click:Connect(function()
+	Frame.Visible = not Frame.Visible
+end)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+Title.Text = "Admin Control Menu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.SourceSansBold
+Title.Parent = Frame
+
+local function createToggleButton(text, position, defaultState, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.9, 0, 0, 30)
+	btn.Position = position
+	btn.BackgroundColor3 = defaultState and Color3.fromRGB(50, 160, 80) or Color3.fromRGB(160, 50, 50)
+	btn.Text = text .. ": " .. (defaultState and "ON" or "OFF")
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.SourceSans
+	btn.TextSize = 13
+	btn.Parent = Frame
+
+	local state = defaultState
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		btn.BackgroundColor3 = state and Color3.fromRGB(50, 160, 80) or Color3.fromRGB(160, 50, 50)
+		btn.Text = text .. ": " .. (state and "ON" or "OFF")
+		callback(state)
+	end)
+end
+
+-- Feature Toggles
+createToggleButton("Aim Assist", UDim2.new(0.05, 0, 0, 45), Settings.AimAssistEnabled, function(state)
+	Settings.AimAssistEnabled = state
+end)
+
+createToggleButton("Player ESP", UDim2.new(0.05, 0, 0, 85), Settings.ESPEnabled, function(state)
+	Settings.ESPEnabled = state
+end)
+
+createToggleButton("Show FOV", UDim2.new(0.05, 0, 0, 125), Settings.ShowFOV, function(state)
+	Settings.ShowFOV = state
+end)
+
+-- FOV Controls (Limited to Max 100)
+local FOVLabel = Instance.new("TextLabel")
+FOVLabel.Size = UDim2.new(0.9, 0, 0, 20)
+FOVLabel.Position = UDim2.new(0.05, 0, 0, 165)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.Text = "FOV Size: " .. Settings.FOVRadius .. " (Max 100)"
+FOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+FOVLabel.Font = Enum.Font.SourceSans
+FOVLabel.TextSize = 12
+FOVLabel.Parent = Frame
+
+local MinusBtn = Instance.new("TextButton")
+MinusBtn.Size = UDim2.new(0.4, 0, 0, 25)
+MinusBtn.Position = UDim2.new(0.05, 0, 0, 190)
+MinusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+MinusBtn.Text = "- FOV"
+MinusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinusBtn.Parent = Frame
+
+local PlusBtn = Instance.new("TextButton")
+PlusBtn.Size = UDim2.new(0.4, 0, 0, 25)
+PlusBtn.Position = UDim2.new(0.55, 0, 0, 190)
+PlusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+PlusBtn.Text = "+ FOV"
+PlusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlusBtn.Parent = Frame
+
+MinusBtn.MouseButton1Click:Connect(function()
+	Settings.FOVRadius = math.max(Settings.MinFOV, Settings.FOVRadius - 10)
+	FOVLabel.Text = "FOV Size: " .. Settings.FOVRadius .. " (Max 100)"
+end)
+
+PlusBtn.MouseButton1Click:Connect(function()
+	Settings.FOVRadius = math.min(Settings.MaxFOV, Settings.FOVRadius + 10)
+	FOVLabel.Text = "FOV Size: " .. Settings.FOVRadius .. " (Max 100)"
+end)
+
+--------------------------------------------------------------------------------
+-- 3. FOV CIRCLE DRAWING
+--------------------------------------------------------------------------------
+local FOVFrame = Instance.new("Frame")
+FOVFrame.Name = "FOVCircle"
+FOVFrame.BackgroundTransparency = 1
+FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVFrame.Parent = ScreenGui
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = FOVFrame
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = FOVFrame
+
+--------------------------------------------------------------------------------
+-- 4. ESP / HIGHLIGHT SYSTEM
+--------------------------------------------------------------------------------
+local function applyHighlight(character)
+	if not character then return end
+	character:WaitForChild("HumanoidRootPart", 5)
+	
+	local highlight = character:FindFirstChild("AdminMarkESP")
+	if not highlight then
+		highlight = Instance.new("Highlight")
+		highlight.Name = "AdminMarkESP"
+		highlight.Parent = character
+	end
+	
+	highlight.FillColor = Color3.fromRGB(255, 50, 50)
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.FillTransparency = 0.4
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Enabled = Settings.ESPEnabled
+end
+
+local function setupPlayerMark(player)
+	if player == LocalPlayer then return end
+	if player.Character then applyHighlight(player.Character) end
+	player.CharacterAdded:Connect(applyHighlight)
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+	setupPlayerMark(player)
+end
+Players.PlayerAdded:Connect(setupPlayerMark)
+
+--------------------------------------------------------------------------------
+-- 5. AIM ASSIST LOGIC & MAIN LOOP
+--------------------------------------------------------------------------------
+local function getTargetPlayer()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+			local head = player.Character.Head
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			
+			if humanoid and humanoid.Health > 0 then
+				local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+				
+				if onScreen then
+					local distanceToMouse = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+					
+					if distanceToMouse <= Settings.FOVRadius and distanceToMouse < shortestDistance then
+						shortestDistance = distanceToMouse
+						closestPlayer = player
+					end
+				end
+			end
+		end
+	end
+	return closestPlayer
+end
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.UserInputType == Settings.LockKey then
+		isAiming = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Settings.LockKey then
+		isAiming = false
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	FOVFrame.Visible = Settings.ShowFOV
+	if Settings.ShowFOV then
+		FOVFrame.Size = UDim2.new(0, Settings.FOVRadius * 2, 0, Settings.FOVRadius * 2)
+		FOVFrame.Position = UDim2.new(0, Mouse.X, 0, Mouse.Y + 36)
+	end
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character then
+			local hl = player.Character:FindFirstChild("AdminMarkESP")
+			if hl then
+				hl.Enabled = Settings.ESPEnabled
+			end
+		end
+	end
+
+	if isAiming and Settings.AimAssistEnabled then
+		local target = getTargetPlayer()
+		if target and target.Character and target.Character:FindFirstChild("Head") then
+			local targetPos = target.Character.Head.Position
+			Camera.CFrame = Camera.CFrame:Lerp(
+				CFrame.new(Camera.CFrame.Position, targetPos),
+				Settings.Smoothness
+			)
+		end
+	end
+end)
